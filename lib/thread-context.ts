@@ -1,54 +1,43 @@
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
-import sqlite3 from "sqlite3";
-import { open, type Database } from "sqlite";
+import { mkdirSync } from "node:fs";
+import Database from "better-sqlite3";
 import type { ThreadContext } from "./types";
 
-let dbPromise: Promise<Database> | null = null;
+let _db: Database.Database | null = null;
 
-async function getDb() {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const dataDir = path.join(process.cwd(), ".data");
-      await mkdir(dataDir, { recursive: true });
-      const file = path.join(dataDir, "market-intel.sqlite");
-      const db = await open({
-        filename: file,
-        driver: sqlite3.Database,
-      });
+function getDb(): Database.Database {
+  if (!_db) {
+    const dataDir = path.join(process.cwd(), ".data");
+    mkdirSync(dataDir, { recursive: true });
+    const file = path.join(dataDir, "market-intel.sqlite");
+    _db = new Database(file);
+    _db.pragma("journal_mode = WAL");
 
-      await db.exec(`
-        CREATE TABLE IF NOT EXISTS thread_contexts (
-          thread_ts TEXT PRIMARY KEY,
-          briefing TEXT NOT NULL,
-          created_at TEXT NOT NULL
-        );
-      `);
-
-      return db;
-    })();
+    _db.exec(`
+      CREATE TABLE IF NOT EXISTS thread_contexts (
+        thread_ts TEXT PRIMARY KEY,
+        briefing TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
   }
 
-  return dbPromise;
+  return _db;
 }
 
 export async function setThreadContext(threadTs: string, context: ThreadContext) {
-  const db = await getDb();
-  await db.run(
+  const db = getDb();
+  db.prepare(
     `INSERT OR REPLACE INTO thread_contexts (thread_ts, briefing, created_at)
      VALUES (?, ?, ?)`,
-    threadTs,
-    context.briefing,
-    context.createdAt,
-  );
+  ).run(threadTs, context.briefing, context.createdAt);
 }
 
 export async function getThreadContext(threadTs: string): Promise<ThreadContext | null> {
-  const db = await getDb();
-  const row = await db.get<{ briefing: string; created_at: string }>(
+  const db = getDb();
+  const row = db.prepare(
     "SELECT briefing, created_at FROM thread_contexts WHERE thread_ts = ? LIMIT 1",
-    threadTs,
-  );
+  ).get(threadTs) as { briefing: string; created_at: string } | undefined;
   if (!row) return null;
   return { briefing: row.briefing, createdAt: row.created_at };
 }
