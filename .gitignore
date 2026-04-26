@@ -16,6 +16,9 @@ build/
 # data
 .data/
 
+# typescript build info
+tsconfig.tsbuildinfo
+
 # debug
 npm-debug.log*
 
