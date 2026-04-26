@@ -140,46 +140,84 @@ export const STREAM_EXA_DOMAINS: Record<string, string[]> = {
 };
 
 export const REQUIRED_RELEVANCE_TERMS = [
+  // Core CDR & carbon
   "carbon removal",
   "carbon dioxide removal",
   "cdr",
+  "carbon credit",
+  "carbon credits",
+  "carbon market",
+  "carbon offset",
+  "carbon capture",
+  "carbon sequestration",
+  "carbon storage",
+  "carbon sink",
+  "carbon intensity",
+  "carbon pricing",
+  "carbon tax",
+  "carbon border",
+  "carbon negative",
+  "negative emissions",
+  "net zero",
+  "net-zero",
+  "decarbonization",
+  "decarbonisation",
+  // Methods & technologies
   "enhanced weathering",
   "enhanced rock weathering",
   "erw",
   "biochar",
+  "direct air capture",
+  "dac",
+  "beccs",
+  "bioenergy",
+  "blue carbon",
+  "ocean alkalinity",
+  "soil carbon",
+  "afforestation",
+  "reforestation",
+  "nature-based solution",
+  "nature-based",
+  // MRV & standards
   "mrv",
   "permanence",
   "additionality",
-  "carbon credit",
-  "carbon credits",
-  "voluntary carbon market",
+  "verification",
+  "methodology",
   "issuance",
   "retirement",
   "registry",
+  // Policy & compliance
   "article 6",
   "corsia",
   "cbam",
   "eu ets",
-  "direct air capture",
-  "dac",
-  "beccs",
+  "voluntary carbon market",
+  "vcm",
+  "compliance market",
+  "emission trading",
+  "emissions trading",
+  "scope 1",
+  "scope 2",
+  "scope 3",
+  // Science terms
   "basalt",
   "alkalinity",
   "mineralization",
   "geochemistry",
-  "soil carbon",
-  "farmland",
+  "co2 removal",
+  "ghg",
+  "greenhouse gas",
+  // Commercial
   "offtake",
   "procurement",
-  "net zero",
-  "carbon market",
-  "carbon offset",
-  "scope 3",
-  "nature-based",
-  "blue carbon",
-  "ocean alkalinity",
-  "carbon capture",
-  "negative emissions",
+  "farmland",
+  "climate tech",
+  "cleantech",
+  "carbon finance",
+  "green bond",
+  "sustainability-linked",
+  "climate finance",
 ];
 
 export const BOOST_TERMS = [
@@ -227,38 +265,55 @@ export const STREAM_RSS_FEEDS: Record<
     "https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml",
     "https://insideclimatenews.org/feed/",
     "https://grist.org/feed/",
-    "https://desmog.com/feed/",
+    "https://desmog.com/feed",
     "https://www.theguardian.com/environment/climate-crisis/rss",
+    "https://carboncredits.com/feed/",            // carbon policy news
+    "https://carbon180.org/feed",                  // CDR policy advocacy
+    "https://carbonherald.com/feed/",              // carbon industry news
   ],
   funding: [
-    "https://www.ctvc.co/feed",
+    "https://www.ctvc.co/feed",                    // climate VC newsletter
     "https://www.ft.com/climate-change?format=rss",
     "https://techcrunch.com/tag/sustainability/feed/",
     "https://techcrunch.com/tag/climate/feed/",
     "https://www.greenbiz.com/feed",
     "https://www.canarymedia.com/feed",
     "https://carbonherald.com/feed/",
+    "https://carboncredits.com/feed/",             // carbon finance deals
+    "https://energymonitor.ai/feed/",              // energy transition funding
+    "https://carbon180.org/feed",                  // CDR funding advocacy
+    "https://www.ecosystemmarketplace.com/feed/",  // market finance
   ],
   market: [
     "https://carbonherald.com/feed/",
-    "https://www.theguardian.com/environment/rss",
-    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://carbonherald.com/category/carbon-markets/feed", // carbon markets specific
+    "https://carboncredits.com/feed/",             // carbon credit pricing/trading
+    "https://www.ecosystemmarketplace.com/feed/",  // VCM marketplace
     "https://feeds.feedburner.com/carbonbrief",
     "https://www.greenbiz.com/feed",
+    "https://energymonitor.ai/feed/",
+    "https://www.theguardian.com/environment/rss",
+    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
   ],
   research: [
     "https://www.nature.com/nclimate.rss",
+    "https://www.nature.com/nenergy.rss",
+    "https://www.nature.com/ngeo.rss",
     "https://feeds.feedburner.com/carbonbrief",
     "https://insideclimatenews.org/feed/",
     "https://biochartoday.com/category/news/feed/",
-    "https://www.nature.com/nenergy.rss",
-    "https://www.nature.com/ngeo.rss",
+    "https://carbon180.org/feed",                  // CDR research highlights
+    "https://www.edie.net/feed/",                  // sustainability research
   ],
   customer: [
     "https://biochartoday.com/feed/",
+    "https://carboncredits.com/feed/",             // buyer/offtake news
+    "https://carbonherald.com/feed/",
     "https://www.canarymedia.com/feed",
-    "https://www.theguardian.com/environment/rss",
     "https://www.greenbiz.com/feed",
+    "https://www.edie.net/feed/",                  // corporate sustainability
+    "https://energymonitor.ai/feed/",
+    "https://www.theguardian.com/environment/rss",
     "https://www.business-standard.com/rss/companies/news-102.rss",
     "https://www.fortuneindia.com/feed",
   ],
@@ -266,8 +321,13 @@ export const STREAM_RSS_FEEDS: Record<
     "https://techcrunch.com/tag/climate/feed/",
     "https://techcrunch.com/tag/sustainability/feed/",
     "https://carbonherald.com/feed/",
+    "https://carboncredits.com/feed/",             // competitor launches
+    "https://carbon180.org/feed",                  // CDR landscape
     "https://www.greenbiz.com/feed",
     "https://www.canarymedia.com/feed",
     "https://www.ctvc.co/feed",
+    "https://energymonitor.ai/feed/",
+    "https://www.ecosystemmarketplace.com/feed/",
+    "https://www.edie.net/feed/",
   ],
 };
