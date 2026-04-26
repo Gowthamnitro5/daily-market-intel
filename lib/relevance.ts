@@ -1,36 +1,7 @@
 import type { AgentFinding } from "./types";
-import { BOOST_TERMS, EXCLUDE_TERMS, REQUIRED_RELEVANCE_TERMS, SOURCE_TIERS } from "./source-config";
+import { ALL_TRUSTED_DOMAINS, BOOST_TERMS, EXCLUDE_TERMS, REQUIRED_RELEVANCE_TERMS } from "./source-config";
 
-const TRUSTED_DOMAIN_ALLOWLIST = new Set([
-  ...SOURCE_TIERS.tier1,
-  ...SOURCE_TIERS.tier2,
-  ...SOURCE_TIERS.tier3,
-  "economist.com",
-  "iea.org",
-  "worldbank.org",
-  "imf.org",
-  "arxiv.org",
-  "frontierclimate.com",
-  "spglobal.com",
-  "mcgill.ca",
-  "mit.edu",
-  "ox.ac.uk",
-  "cam.ac.uk",
-  "stanford.edu",
-  "iisc.ac.in",
-  "ashoka.edu.in",
-  "gov.uk",
-  "europa.eu",
-  "epa.gov",
-  "energy.gov",
-  "eartharxiv.org",
-  "mdpi.com",
-  "cdm.unfccc.int",
-  "link.springer.com",
-  "springer.com",
-  "business-standard.com",
-  "fortuneindia.com",
-]);
+const TRUSTED_DOMAIN_ALLOWLIST = new Set(ALL_TRUSTED_DOMAINS);
 
 const BLOCKED_DOMAIN_HINTS = [
   "pages.dev",

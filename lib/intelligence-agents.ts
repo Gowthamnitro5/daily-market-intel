@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import type { AgentFinding, IntelligenceStream } from "./types";
 import { getEnv } from "./env";
 import { freeModel } from "./model";
-import { STREAM_RSS_FEEDS } from "./source-config";
+import { STREAM_RSS_FEEDS, STREAM_EXA_DOMAINS } from "./source-config";
 import { isTrustedSourceUrl } from "./relevance";
 
 type ExaResult = {
@@ -41,49 +41,49 @@ const STREAM_CONFIG: Record<
 > = {
   policy: {
     exaQuery:
-      "Article 6 carbon policy CBAM EU ETS CORSIA carbon registry rule update climate compliance law last 48 hours",
+      "carbon credit policy regulation Article 6 CBAM EU ETS CORSIA registry compliance CDR eligibility rules carbon market regulation",
     promptGuide:
       "Track policy and compliance changes that affect credit eligibility, cross-border claims, and registry acceptance.",
     category: "news",
   },
   funding: {
     exaQuery:
-      "CDR project finance debt grant structured offtake carbon removal infrastructure funding last 48 hours",
+      "carbon removal funding investment CDR climate tech series A series B grant offtake agreement carbon credit project finance venture capital",
     promptGuide:
       "Track financing signals that change deployment speed: debt facilities, grants, infra capex, and long-term offtakes.",
     category: "news",
   },
   market: {
     exaQuery:
-      "voluntary carbon market pricing retirements issuances exchange liquidity CORSIA demand last 48 hours",
+      "voluntary carbon market carbon credit price issuance retirement Verra Gold Standard registry trading carbon offset demand supply",
     promptGuide:
       "Track demand-supply and liquidity signals in carbon markets: prices, retirements, issuances, and buyer concentration.",
     category: "news",
   },
   research: {
     exaQuery:
-      "enhanced weathering carbon removal paper preprint MRV discovery alkalinity groundwater geochemistry permanence additionality last 48 hours",
+      "enhanced weathering biochar carbon removal MRV permanence additionality soil carbon direct air capture ocean alkalinity mineralization carbon sequestration study",
     promptGuide:
       "Focus strictly on scientific papers and discoveries: peer-reviewed articles, preprints, methodological advances, and quantification breakthroughs.",
     category: "research",
   },
   customer: {
     exaQuery:
-      "carbon removal offtake procurement buyers shipping aviation cement steel net zero agreements last 48 hours",
+      "carbon removal offtake procurement net zero corporate buyer carbon credit purchase agreement Frontier Microsoft Stripe Shopify carbon negative commitment",
     promptGuide:
       "Track buyer-side intelligence: procurements, offtakes, purchasing criteria, and renewal/expansion behavior.",
     category: "news",
   },
   competitive: {
     exaQuery:
-      "carbon registry marketplace ERW developer launch partnership acquisition MRV platform last 48 hours",
+      "carbon removal startup CDR company launch partnership MRV platform registry marketplace enhanced weathering biochar direct air capture deployment",
     promptGuide:
       "Track competitive moves in planetary intelligence infrastructure: registries, MRV platforms, labs, and developer networks.",
     category: "news",
   },
 };
 
-async function exaSearch(query: string, category: "news" | "research" = "news"): Promise<ExaResult[]> {
+async function exaSearch(query: string, category: "news" | "research" = "news", includeDomains?: string[]): Promise<ExaResult[]> {
   const apiKey = getEnv("EXA_API_KEY");
   const scheduleExaCall = async () => {
     exaRateLimiter = exaRateLimiter.then(async () => {
@@ -111,11 +111,12 @@ async function exaSearch(query: string, category: "news" | "research" = "news"):
           query,
           type: "neural",
           category,
-          numResults: 8,
+          numResults: 10,
           text: true,
           useAutoprompt: true,
           startPublishedDate: start,
           endPublishedDate: end,
+          ...(includeDomains && includeDomains.length > 0 ? { includeDomains } : {}),
         },
         {
           headers: {
@@ -221,7 +222,8 @@ export async function runSpecializedAgent(
   stream: IntelligenceStream,
 ): Promise<AgentFinding[]> {
   const cfg = STREAM_CONFIG[stream];
-  const exaItems = await exaSearch(cfg.exaQuery, cfg.category ?? "news");
+  const domains = STREAM_EXA_DOMAINS[stream];
+  const exaItems = await exaSearch(cfg.exaQuery, cfg.category ?? "news", domains);
   const rssItems = await rssSearch(stream);
   const mergedMap = new Map<string, ExaResult>();
   for (const item of [...exaItems, ...rssItems]) {
