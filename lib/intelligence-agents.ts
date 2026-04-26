@@ -205,17 +205,25 @@ function formatExa(results: ExaResult[]) {
 function fallbackFromExa(stream: IntelligenceStream, exaItems: ExaResult[]): AgentFinding[] {
   return exaItems
     .filter((x) => x.url && x.title)
-    .slice(0, 6)
-    .map((x) => ({
-      stream,
-      title: (x.title ?? "Untitled").trim(),
-      summary: ((x.text ?? x.title ?? "").trim() || "No summary available.").slice(0, 420),
-      entity: (x.title ?? "Market").split(" ").slice(0, 3).join(" "),
-      action: "reported development",
-      sourceUrl: x.url as string,
-      sourceName: domainFromUrl(x.url as string),
-      publishedAt: x.publishedDate,
-    }));
+    .slice(0, 8)
+    .map((x) => {
+      const snippet = (x.text ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const title = (x.title ?? "Untitled").trim();
+      // Use RSS/Exa snippet for summary, falling back to title only as last resort.
+      const summary = snippet.length > 20
+        ? snippet.slice(0, 420)
+        : title;
+      return {
+        stream,
+        title,
+        summary,
+        entity: title.split(/[\s—–\-:,]/).slice(0, 4).join(" ").trim() || "Market",
+        action: "reported development",
+        sourceUrl: x.url as string,
+        sourceName: domainFromUrl(x.url as string),
+        publishedAt: x.publishedDate,
+      };
+    });
 }
 
 export async function runSpecializedAgent(
@@ -280,17 +288,34 @@ ${sourceContext}`,
     ? ((parsed as { findings: unknown[] }).findings as Record<string, unknown>[])
     : [];
 
+  // Build a URL→snippet lookup so we can backfill empty LLM summaries.
+  const snippetByUrl = new Map<string, string>();
+  for (const item of trustedItems) {
+    if (item.url && item.text) {
+      snippetByUrl.set(normalizeUrl(item.url), item.text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    }
+  }
+
   const mapped = findings
-    .map((f) => ({
-      stream,
-      title: String(f.title ?? "").trim(),
-      summary: String(f.summary ?? "").trim(),
-      entity: String(f.entity ?? "").trim(),
-      action: String(f.action ?? "").trim(),
-      sourceUrl: String(f.sourceUrl ?? "").trim(),
-      sourceName: String(f.sourceName ?? "").trim(),
-      publishedAt: String(f.publishedAt ?? "").trim() || undefined,
-    }))
+    .map((f) => {
+      const url = normalizeUrl(String(f.sourceUrl ?? "").trim());
+      let summary = String(f.summary ?? "").trim();
+      // Backfill empty/generic summaries with the original RSS/Exa snippet.
+      if (!summary || summary === "No summary available." || summary.length < 20) {
+        const snippet = snippetByUrl.get(url) ?? "";
+        summary = snippet.length > 20 ? snippet.slice(0, 420) : String(f.title ?? "").trim();
+      }
+      return {
+        stream,
+        title: String(f.title ?? "").trim(),
+        summary,
+        entity: String(f.entity ?? "").trim(),
+        action: String(f.action ?? "").trim(),
+        sourceUrl: String(f.sourceUrl ?? "").trim(),
+        sourceName: String(f.sourceName ?? "").trim(),
+        publishedAt: String(f.publishedAt ?? "").trim() || undefined,
+      };
+    })
     .filter(
       (f) =>
         f.title &&

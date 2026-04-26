@@ -1,7 +1,10 @@
 import type { AgentFinding } from "./types";
-import { ALL_TRUSTED_DOMAINS, BOOST_TERMS, EXCLUDE_TERMS, REQUIRED_RELEVANCE_TERMS } from "./source-config";
+import { ALL_TRUSTED_DOMAINS, BOOST_TERMS, EXCLUDE_TERMS, REQUIRED_RELEVANCE_TERMS, SOURCE_TIERS } from "./source-config";
 
 const TRUSTED_DOMAIN_ALLOWLIST = new Set(ALL_TRUSTED_DOMAINS);
+
+// Tier1 sources are carbon-specific — everything they publish is relevant by definition.
+const CARBON_NATIVE_DOMAINS = new Set(SOURCE_TIERS.tier1);
 
 const BLOCKED_DOMAIN_HINTS = [
   "pages.dev",
@@ -30,7 +33,19 @@ export function isTrustedDomain(host: string) {
   return false;
 }
 
+function isCarbonNativeDomain(url: string): boolean {
+  const host = hostname(url);
+  for (const domain of CARBON_NATIVE_DOMAINS) {
+    if (host === domain || host.endsWith(`.${domain}`)) return true;
+  }
+  return false;
+}
+
 function isAltCarbonRelevant(finding: AgentFinding) {
+  // Tier1 carbon-native sources (carbonherald, biochartoday, verra, etc.)
+  // only publish carbon content — auto-pass relevance check.
+  if (isCarbonNativeDomain(finding.sourceUrl)) return true;
+
   const corpus =
     `${finding.title} ${finding.summary} ${finding.entity} ${finding.action}`.toLowerCase();
   if (EXCLUDE_TERMS.some((term) => corpus.includes(term))) {
@@ -41,8 +56,6 @@ function isAltCarbonRelevant(finding: AgentFinding) {
   const requiredHits = REQUIRED_RELEVANCE_TERMS.filter((term) => corpus.includes(term)).length;
   const boostHits = BOOST_TERMS.filter((term) => corpus.includes(term)).length;
 
-  // Practical threshold: at least one core relevance term.
-  // For research stream, trusted scientific sources are often concise, so allow with one hit.
   if (finding.stream === "research") return requiredHits >= 1;
   return requiredHits >= 1 || (requiredHits >= 0 && boostHits >= 2);
 }

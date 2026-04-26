@@ -90,16 +90,17 @@ describe("applyAltCarbonRelevanceGate", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("excludes EV content from trusted sources via exclude terms when no core match", () => {
-    const relevant = finding(); // has carbon credit terms
+  it("excludes EV content from tier2/3 trusted sources via exclude terms when no core match", () => {
+    const relevant = finding(); // has carbon credit terms, tier1 source
     const irrelevant = finding({
       title: "New ev charging station network",
       summary: "EV charging expands across Europe",
       entity: "ChargePoint",
       action: "expanded network",
+      sourceUrl: "https://reuters.com/article",  // tier3, not carbon-native
     });
     const result = applyAltCarbonRelevanceGate([relevant, irrelevant]);
-    // Only the relevant one passes primary gate
+    // Only the relevant one passes — EV content from non-carbon-native source is excluded
     expect(result).toHaveLength(1);
     expect(result[0].entity).toBe("Verra");
   });
