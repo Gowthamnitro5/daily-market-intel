@@ -7,18 +7,53 @@ import { filterFreshAndNovel, filterUnpublished, markEventsSeen, savePublished }
 import { applyAltCarbonRelevanceGate } from "./relevance";
 import { buildMainMessage, buildSectionMessages } from "./briefing-format";
 import { generateTldrBullets } from "./llm";
+import { alertUnhealthyFeeds } from "./feed-health";
 
 export async function runDailyWorkflow() {
+  // Monitor RSS feed health and alert on failures.
+  await alertUnhealthyFeeds().catch(() => {});
+
   const streams = await runAllAgents();
   const streamNames = Object.keys(streams) as IntelligenceStream[];
 
   let allFindings = streamNames.flatMap((s) => streams[s]);
   allFindings = dedupeFindings(allFindings);
   allFindings = applyAltCarbonRelevanceGate(allFindings);
-  const freshAndNovel = await filterFreshAndNovel(allFindings, 48);
+
+  // Try 48h window first, fall back to 72h if nothing found.
+  let freshAndNovel = await filterFreshAndNovel(allFindings, 48);
+  let widenedWindow = false;
+  if (freshAndNovel.length === 0) {
+    freshAndNovel = await filterFreshAndNovel(allFindings, 72);
+    widenedWindow = true;
+  }
+
   const unpublishedFindings = await filterUnpublished(freshAndNovel);
 
   if (unpublishedFindings.length === 0) {
+    // Post a "quiet day" message so you know the cron ran.
+    const date = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const quietMsg = [
+      "*Alt Carbon — Market Intelligence*",
+      `_${date}_`,
+      "",
+      "_No significant carbon/CDR intelligence surfaced in the past 48 hours._",
+      `_Pipeline scanned ${allFindings.length} items from ${streamNames.length} streams._`,
+      "",
+      "Monitoring continues. The next briefing will be posted when fresh intel is detected.",
+    ].join("\n");
+
+    try {
+      await postMessage(quietMsg, undefined, { unfurlLinks: false, unfurlMedia: false });
+    } catch {
+      // Slack down — nothing we can do
+    }
+
     return {
       itemsCount: 0,
       streamCounts: streamNames.reduce(
@@ -29,9 +64,11 @@ export async function runDailyWorkflow() {
         {} as Record<string, number>,
       ),
       skipped: true,
-      reason: "No fresh (<=48h) novel intelligence to publish.",
+      reason: widenedWindow
+        ? "No fresh intelligence in 48h or 72h window."
+        : "No fresh (<=48h) novel intelligence to publish.",
       postedThreadTs: null,
-      preview: "",
+      preview: quietMsg.slice(0, 300),
       dbInserted: 0,
     };
   }
@@ -43,7 +80,12 @@ export async function runDailyWorkflow() {
   const mainMessage = await buildMainMessage(unpublishedFindings, tldrBullets);
   const sectionMessages = buildSectionMessages(unpublishedFindings);
 
-  const ts = await postMessage(mainMessage, undefined, {
+  // Add a note if we had to widen the window.
+  const finalMessage = widenedWindow
+    ? mainMessage + "\n\n_Note: 48h window was quiet — this briefing includes items from the past 72 hours._"
+    : mainMessage;
+
+  const ts = await postMessage(finalMessage, undefined, {
     unfurlLinks: false,
     unfurlMedia: false,
   });
@@ -66,7 +108,7 @@ export async function runDailyWorkflow() {
 
   if (ts) {
     await setThreadContext(ts, {
-      briefing: mainMessage,
+      briefing: finalMessage,
       createdAt: new Date().toISOString(),
     });
   }
@@ -81,7 +123,8 @@ export async function runDailyWorkflow() {
       {} as Record<string, number>,
     ),
     postedThreadTs: ts,
-    preview: mainMessage.slice(0, 300),
+    preview: finalMessage.slice(0, 300),
     dbInserted,
+    widenedWindow,
   };
 }

@@ -99,6 +99,8 @@ export const ALL_TRUSTED_DOMAINS: string[] = [
   "springer.com",
   "business-standard.com",
   "fortuneindia.com",
+  "news.un.org",
+  "c2es.org",
 ];
 
 /** Per-stream Exa domain overrides — narrows search to most relevant sources per stream. */
@@ -270,6 +272,8 @@ export const STREAM_RSS_FEEDS: Record<
     "https://carboncredits.com/feed/",            // carbon policy news
     "https://carbon180.org/feed",                  // CDR policy advocacy
     "https://carbonherald.com/feed/",              // carbon industry news
+    "https://news.un.org/feed/subscribe/en/news/topic/climate-change/feed/rss.xml", // UN climate
+    "https://www.c2es.org/feed/",                  // Center for Climate and Energy Solutions
   ],
   funding: [
     "https://www.ctvc.co/feed",                    // climate VC newsletter
@@ -283,6 +287,7 @@ export const STREAM_RSS_FEEDS: Record<
     "https://energymonitor.ai/feed/",              // energy transition funding
     "https://carbon180.org/feed",                  // CDR funding advocacy
     "https://www.ecosystemmarketplace.com/feed/",  // market finance
+    "https://www.cnbc.com/id/10000108/device/rss/rss.html", // CNBC environment
   ],
   market: [
     "https://carbonherald.com/feed/",
