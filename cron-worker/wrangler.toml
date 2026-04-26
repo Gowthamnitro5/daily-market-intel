@@ -4,4 +4,4 @@ compatibility_date = "2024-01-01"
 account_id = "bea831fb5da222836d44f9c69c46b9e7"
 
 [triggers]
-crons = ["30 3 * * *"]  # 9 AM IST (3:30 AM UTC) daily
+crons = ["30 2 * * *"]  # 8 AM IST (2:30 AM UTC) daily

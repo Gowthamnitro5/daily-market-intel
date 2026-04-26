@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 import type { AgentFinding } from "./types";
-import { freeModel } from "./model";
+import { smartModel } from "./model";
 
 function groupedInput(items: AgentFinding[]) {
   return items
@@ -31,7 +31,7 @@ export async function generateTldrBullets(items: AgentFinding[]): Promise<string
 
   try {
     const { text } = await generateText({
-      model: freeModel(),
+      model: smartModel(),
       temperature: 0.2,
       system: `You are Alt Carbon's market intelligence editor.
 You will receive a list of findings from the last 48 hours.
@@ -74,7 +74,7 @@ Rules:
 
 export async function answerThreadQuestion(briefing: string, question: string) {
   const { text } = await generateText({
-    model: freeModel(),
+    model: smartModel(),
     temperature: 0.2,
     system:
       "You answer follow-up questions in a Slack thread using the prior daily market briefing context. Be concise, factual, and explicit about uncertainty.",
