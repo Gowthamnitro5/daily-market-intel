@@ -1,6 +1,7 @@
 import path from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import initSqlJs, { type Database } from "sql.js";
+import initSqlJs from "sql.js/dist/sql-asm.js";
+import type { Database } from "sql.js";
 import type { ThreadContext } from "./types";
 
 let _db: Database | null = null;

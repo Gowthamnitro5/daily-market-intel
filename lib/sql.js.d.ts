@@ -14,3 +14,13 @@ declare module "sql.js" {
   export type { Database };
   export default function initSqlJs(config?: Record<string, unknown>): Promise<SqlJsStatic>;
 }
+
+declare module "sql.js/dist/sql-asm.js" {
+  import type { Database } from "sql.js";
+
+  interface SqlJsStatic {
+    Database: new (data?: ArrayLike<number>) => Database;
+  }
+
+  export default function initSqlJs(config?: Record<string, unknown>): Promise<SqlJsStatic>;
+}
