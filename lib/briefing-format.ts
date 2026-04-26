@@ -31,21 +31,19 @@ function stripAsterisks(value: string) {
   return value.replace(/\*/g, "").trim();
 }
 
-export function buildMainMessage(findings: AgentFinding[]) {
+/**
+ * Build the main Slack message with LLM-generated TL;DR bullets.
+ * The LLM picks the 5 most important items and writes business implications.
+ */
+export async function buildMainMessage(findings: AgentFinding[], tldrBullets: string[]) {
   const date = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-  const top = findings.slice(0, 6);
-  const tldrLines =
-    top.length > 0
-      ? top.map(
-          (f) =>
-            `• *${stripAsterisks(f.title)}* — ${stripAsterisks(f.summary.split(".")[0] || "Key development.")}`,
-        )
-      : ["• *No significant CDR intelligence in the past 48 hours.*"];
+
+  const tldrLines = tldrBullets.map((b) => `• ${b}`);
 
   return [
     "*Alt Carbon — Market Intelligence*",

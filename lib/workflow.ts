@@ -6,6 +6,7 @@ import type { IntelligenceStream } from "./types";
 import { filterFreshAndNovel, filterUnpublished, markEventsSeen, savePublished } from "./database";
 import { applyAltCarbonRelevanceGate } from "./relevance";
 import { buildMainMessage, buildSectionMessages } from "./briefing-format";
+import { generateTldrBullets } from "./llm";
 
 export async function runDailyWorkflow() {
   const streams = await runAllAgents();
@@ -35,8 +36,11 @@ export async function runDailyWorkflow() {
     };
   }
 
-  // Build Slack messages in Alt-Radar style: main TL;DR + threaded sections.
-  const mainMessage = buildMainMessage(unpublishedFindings);
+  // LLM picks the 5 most important items and writes business implications for TL;DR.
+  const tldrBullets = await generateTldrBullets(unpublishedFindings);
+
+  // Build Slack messages in Alt-Radar style: LLM TL;DR + threaded sections.
+  const mainMessage = await buildMainMessage(unpublishedFindings, tldrBullets);
   const sectionMessages = buildSectionMessages(unpublishedFindings);
 
   const ts = await postMessage(mainMessage, undefined, {

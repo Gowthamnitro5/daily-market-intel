@@ -11,61 +11,64 @@ function groupedInput(items: AgentFinding[]) {
     .join("\n");
 }
 
-export async function generateDailyBriefing(items: AgentFinding[]) {
-  const now = new Date();
-  const dateLong = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+/**
+ * Generate 5 smart TL;DR bullets using LLM.
+ * Returns an array of bullet strings (without the "• " prefix).
+ * Falls back to simple title-based bullets if LLM fails.
+ */
+export async function generateTldrBullets(items: AgentFinding[]): Promise<string[]> {
+  const fallback = items
+    .slice(0, 5)
+    .map((i) => {
+      const headline = i.title.replace(/\*/g, "").trim();
+      const implication = (i.summary.split(".")[0] || "Key development for Alt Carbon").replace(/\*/g, "").trim();
+      return `*${headline}* — ${implication}`;
+    });
+
+  if (items.length === 0) {
+    return ["*No significant CDR intelligence in the past 48 hours.*"];
+  }
 
   try {
     const { text } = await generateText({
       model: freeModel(),
       temperature: 0.2,
       system: `You are Alt Carbon's market intelligence editor.
-Return plain markdown text only, not Slack formatting.
-Output must follow this exact style:
+You will receive a list of findings from the last 48 hours.
+Your job: pick the 5 most important and write a one-line TL;DR for each.
 
-Alt Carbon — Market Intelligence
-<Day, Month DD, YYYY>
-
-TL;DR:
-• <headline> — <one-sentence business implication>
-• <headline> — <one-sentence business implication>
-• <headline> — <one-sentence business implication>
-• <headline> — <one-sentence business implication>
-• <headline> — <one-sentence business implication>
-
-To know more, check the thread replies below.
+Output format — exactly 5 lines, one per bullet, no numbering:
+<headline> — <one-sentence business implication for Alt Carbon>
+<headline> — <one-sentence business implication for Alt Carbon>
+<headline> — <one-sentence business implication for Alt Carbon>
+<headline> — <one-sentence business implication for Alt Carbon>
+<headline> — <one-sentence business implication for Alt Carbon>
 
 Rules:
-- Exactly 5 bullets in TL;DR.
-- Each bullet must be specific to carbon credits/CDR/MRV/agri-infra relevance for Alt Carbon.
-- Deduplicate same story across different sources.
-- If same event was already reported and no materially new detail appears, do not repeat.
-- No emojis. No hype language.`,
-      prompt: `Date: ${dateLong}\n\nInput items:\n${groupedInput(items)}`,
+- Pick the 5 highest-impact items across ALL streams (policy, funding, market, research, customer, competitive).
+- Prioritize diversity: cover different streams, don't cluster on one topic.
+- Each bullet must state the business implication for a carbon removal / CDR company.
+- Deduplicate: if the same event appears from multiple sources, merge into one bullet.
+- No emojis. No hype. No markdown formatting. Plain text only.
+- Do not add any prefix like "•" or "-" or numbers.`,
+      prompt: `Input findings:\n${groupedInput(items)}`,
     });
 
-    return text;
-  } catch {
-    const top = items.slice(0, 5);
-    const bullets = top
-      .map((i) => `• ${i.title} — ${i.summary.split(".")[0] || "Relevant development for Alt Carbon."}`)
-      .join("\n");
-    const fallbackBullets =
-      bullets ||
-      [
-        "• No high-confidence fresh carbon-credit signal in last 48 hours — monitoring continues.",
-        "• No major MRV methodology shift detected — keep watch on protocol updates.",
-        "• No significant buyer offtake announcement verified — track corporate procurement windows.",
-        "• No major policy surprise relevant to CDR eligibility identified — monitor Article 6 and registry notices.",
-        "• No notable agri-infra deployment update surfaced from trusted sources — continue field intelligence sweep.",
-      ].join("\n");
+    const lines = text
+      .split("\n")
+      .map((l) => l.replace(/^[\s•\-\d.]+/, "").trim())
+      .filter((l) => l.length > 10 && l.includes("—"));
 
-    return `Alt Carbon — Market Intelligence\n${dateLong}\n\nTL;DR:\n${fallbackBullets}\n\nTo know more, check the thread replies below.`;
+    if (lines.length >= 3) {
+      return lines.slice(0, 5).map((l) => {
+        const [headline, ...rest] = l.split("—");
+        return `*${(headline ?? "").replace(/\*/g, "").trim()}* — ${rest.join("—").replace(/\*/g, "").trim()}`;
+      });
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
   }
 }
 

@@ -63,7 +63,7 @@ async function main() {
 
   const { runAllAgents } = await import("../lib/intelligence-agents");
   const { dedupeFindings } = await import("../lib/dedupe");
-  const { generateDailyBriefing } = await import("../lib/llm");
+  const { generateTldrBullets } = await import("../lib/llm");
   const { filterFreshAndNovel } = await import("../lib/database");
   const { applyAltCarbonRelevanceGate } = await import("../lib/relevance");
 
@@ -98,7 +98,8 @@ async function main() {
       const reachableChecks = await Promise.all(freshNovel.map((f) => isReachable(f.sourceUrl)));
       allFindings = freshNovel.filter((_, idx) => reachableChecks[idx]);
       stageCounts.afterReachable = allFindings.length;
-      briefing = await generateDailyBriefing(allFindings);
+      const bullets = await generateTldrBullets(allFindings);
+      briefing = bullets.map((b) => `• ${b}`).join("\n");
       lastError = null;
       break;
     } catch (error) {
