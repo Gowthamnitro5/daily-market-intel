@@ -101,73 +101,93 @@ async function exaSearch(query: string, category: "news" | "research" = "news", 
   const start = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
   const end = now.toISOString();
 
-  let lastError: unknown = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      await scheduleExaCall();
-      const response = await axios.post(
-        "https://api.exa.ai/search",
-        {
-          query,
-          type: "neural",
-          category,
-          numResults: 10,
-          text: true,
-          useAutoprompt: true,
-          startPublishedDate: start,
-          endPublishedDate: end,
-          ...(includeDomains && includeDomains.length > 0 ? { includeDomains } : {}),
-        },
-        {
-          headers: {
-            "x-api-key": apiKey,
-            "content-type": "application/json",
+  // Try with includeDomains first; if it returns 0, retry without domain filter.
+  for (const tryDomains of [includeDomains, undefined]) {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await scheduleExaCall();
+        const response = await axios.post(
+          "https://api.exa.ai/search",
+          {
+            query,
+            type: "neural",
+            category,
+            numResults: 10,
+            text: true,
+            useAutoprompt: true,
+            startPublishedDate: start,
+            endPublishedDate: end,
+            ...(tryDomains && tryDomains.length > 0 ? { includeDomains: tryDomains } : {}),
           },
-          timeout: 25000,
-        },
-      );
+          {
+            headers: {
+              "x-api-key": apiKey,
+              "content-type": "application/json",
+            },
+            timeout: 25000,
+          },
+        );
 
-      return (response.data?.results ?? []) as ExaResult[];
-    } catch (error) {
-      lastError = error;
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      const retryAfterHeader = axios.isAxiosError(error)
-        ? error.response?.headers?.["retry-after"]
-        : undefined;
-      const retryAfterSeconds = Number(Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader);
-      if (status !== 429 || attempt === 4) break;
-      const expBackoffMs = 800 * (attempt + 1) * 2;
-      const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 0;
-      const jitterMs = Math.floor(Math.random() * 250);
-      const delayMs = Math.max(expBackoffMs, retryAfterMs) + jitterMs;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const results = (response.data?.results ?? []) as ExaResult[];
+        if (results.length > 0) return results;
+        break; // 0 results with this domain set — try without
+      } catch (error) {
+        lastError = error;
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        const retryAfterHeader = axios.isAxiosError(error)
+          ? error.response?.headers?.["retry-after"]
+          : undefined;
+        const retryAfterSeconds = Number(Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader);
+        if (status !== 429 || attempt === 2) break;
+        const expBackoffMs = 800 * (attempt + 1) * 2;
+        const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 0;
+        const jitterMs = Math.floor(Math.random() * 250);
+        const delayMs = Math.max(expBackoffMs, retryAfterMs) + jitterMs;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    if (!tryDomains) {
+      // Already tried without domains — give up
+      if (lastError) throw lastError instanceof Error ? lastError : new Error("Exa search failed");
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("Exa search failed");
+  return []; // No results from either attempt
+}
+
+function extractTag(item: string, tag: string): string {
+  // Handle CDATA (multiline) first, then plain tags
+  const cdataRe = new RegExp(`<${tag}>[\\s]*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>[\\s]*<\\/${tag}>`, "i");
+  const plainRe = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i");
+  return (item.match(cdataRe)?.[1] ?? item.match(plainRe)?.[1] ?? "").trim();
 }
 
 function parseRssItems(xml: string): ExaResult[] {
   const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/g) ?? [];
-  return itemBlocks.slice(0, 12).map((item) => {
-    const title =
-      item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] ??
-      item.match(/<title>(.*?)<\/title>/)?.[1] ??
-      "";
-    const url = item.match(/<link>(.*?)<\/link>/)?.[1] ?? "";
-    const publishedDate =
-      item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ??
-      item.match(/<dc:date>(.*?)<\/dc:date>/)?.[1] ??
-      "";
-    const text =
-      item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1] ??
-      item.match(/<description>(.*?)<\/description>/)?.[1] ??
-      "";
+  return itemBlocks.slice(0, 15).map((item) => {
+    const title = extractTag(item, "title");
+    const url = extractTag(item, "link");
+    const publishedDate = extractTag(item, "pubDate") || extractTag(item, "dc:date");
+    const description = extractTag(item, "description");
+    // Some feeds put richer content in <content:encoded>
+    const contentEncoded = extractTag(item, "content:encoded");
+    const rawText = contentEncoded || description;
+    const cleanText = rawText
+      .replace(/<!\[CDATA\[|\]\]>/g, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
     return {
-      title: title.replace(/<!\[CDATA\[|\]\]>/g, "").trim(),
+      title: title.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim(),
       url: url.trim(),
       publishedDate: publishedDate ? new Date(publishedDate).toISOString() : undefined,
-      text: text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+      text: cleanText.slice(0, 800),
     };
   });
 }
