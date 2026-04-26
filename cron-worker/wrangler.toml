@@ -1,0 +1,7 @@
+name = "daily-market-intel-cron"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+account_id = "bea831fb5da222836d44f9c69c46b9e7"
+
+[triggers]
+crons = ["30 3 * * *"]  # 9 AM IST (3:30 AM UTC) daily
