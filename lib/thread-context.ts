@@ -1,19 +1,26 @@
 import path from "node:path";
-import { mkdirSync } from "node:fs";
-import Database from "better-sqlite3";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import initSqlJs, { type Database } from "sql.js";
 import type { ThreadContext } from "./types";
 
-let _db: Database.Database | null = null;
+let _db: Database | null = null;
+let _dbPath: string = "";
 
-function getDb(): Database.Database {
+async function getDb(): Promise<Database> {
   if (!_db) {
+    const SQL = await initSqlJs();
     const dataDir = path.join(process.cwd(), ".data");
     mkdirSync(dataDir, { recursive: true });
-    const file = path.join(dataDir, "market-intel.sqlite");
-    _db = new Database(file);
-    _db.pragma("journal_mode = WAL");
+    _dbPath = path.join(dataDir, "market-intel.sqlite");
 
-    _db.exec(`
+    if (existsSync(_dbPath)) {
+      const buffer = readFileSync(_dbPath);
+      _db = new SQL.Database(buffer);
+    } else {
+      _db = new SQL.Database();
+    }
+
+    _db.run(`
       CREATE TABLE IF NOT EXISTS thread_contexts (
         thread_ts TEXT PRIMARY KEY,
         briefing TEXT NOT NULL,
@@ -25,19 +32,30 @@ function getDb(): Database.Database {
   return _db;
 }
 
+function saveToFile() {
+  if (_db && _dbPath) {
+    const data = _db.export();
+    writeFileSync(_dbPath, Buffer.from(data));
+  }
+}
+
 export async function setThreadContext(threadTs: string, context: ThreadContext) {
-  const db = getDb();
-  db.prepare(
+  const db = await getDb();
+  db.run(
     `INSERT OR REPLACE INTO thread_contexts (thread_ts, briefing, created_at)
      VALUES (?, ?, ?)`,
-  ).run(threadTs, context.briefing, context.createdAt);
+    [threadTs, context.briefing, context.createdAt],
+  );
+  saveToFile();
 }
 
 export async function getThreadContext(threadTs: string): Promise<ThreadContext | null> {
-  const db = getDb();
-  const row = db.prepare(
+  const db = await getDb();
+  const rows = db.exec(
     "SELECT briefing, created_at FROM thread_contexts WHERE thread_ts = ? LIMIT 1",
-  ).get(threadTs) as { briefing: string; created_at: string } | undefined;
-  if (!row) return null;
-  return { briefing: row.briefing, createdAt: row.created_at };
+    [threadTs],
+  );
+  if (!rows.length || !rows[0].values.length) return null;
+  const [briefing, createdAt] = rows[0].values[0] as [string, string];
+  return { briefing, createdAt };
 }

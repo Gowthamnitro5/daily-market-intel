@@ -1,19 +1,26 @@
 import path from "node:path";
-import { mkdirSync } from "node:fs";
-import Database from "better-sqlite3";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import initSqlJs, { type Database } from "sql.js";
 import type { AgentFinding } from "./types";
 
-let _db: Database.Database | null = null;
+let _db: Database | null = null;
+let _dbPath: string = "";
 
-function getDb(): Database.Database {
+async function getDb(): Promise<Database> {
   if (!_db) {
+    const SQL = await initSqlJs();
     const dataDir = path.join(process.cwd(), ".data");
     mkdirSync(dataDir, { recursive: true });
-    const file = path.join(dataDir, "market-intel.sqlite");
-    _db = new Database(file);
-    _db.pragma("journal_mode = WAL");
+    _dbPath = path.join(dataDir, "market-intel.sqlite");
 
-    _db.exec(`
+    if (existsSync(_dbPath)) {
+      const buffer = readFileSync(_dbPath);
+      _db = new SQL.Database(buffer);
+    } else {
+      _db = new SQL.Database();
+    }
+
+    _db.run(`
       CREATE TABLE IF NOT EXISTS published_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source_url TEXT NOT NULL UNIQUE,
@@ -25,12 +32,12 @@ function getDb(): Database.Database {
       );
     `);
 
-    _db.exec(`
+    _db.run(`
       CREATE INDEX IF NOT EXISTS idx_published_items_source_published_date
       ON published_items (source_published_date);
     `);
 
-    _db.exec(`
+    _db.run(`
       CREATE TABLE IF NOT EXISTS seen_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         event_key TEXT NOT NULL UNIQUE,
@@ -40,16 +47,25 @@ function getDb(): Database.Database {
       );
     `);
 
-    _db.exec(`
+    _db.run(`
       CREATE TABLE IF NOT EXISTS thread_contexts (
         thread_ts TEXT PRIMARY KEY,
         briefing TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
     `);
+
+    saveToFile();
   }
 
   return _db;
+}
+
+function saveToFile() {
+  if (_db && _dbPath) {
+    const data = _db.export();
+    writeFileSync(_dbPath, Buffer.from(data));
+  }
 }
 
 function normalizeText(value: string) {
@@ -87,8 +103,7 @@ export async function filterFreshAndNovel(
   findings: AgentFinding[],
   maxAgeHours = 48,
 ): Promise<AgentFinding[]> {
-  const db = getDb();
-  const stmt = db.prepare("SELECT latest_text FROM seen_events WHERE event_key = ? LIMIT 1");
+  const db = await getDb();
   const filtered: AgentFinding[] = [];
 
   for (const finding of findings) {
@@ -96,14 +111,15 @@ export async function filterFreshAndNovel(
 
     const key = eventKey(finding);
     const currentText = `${finding.title} ${finding.summary}`;
-    const row = stmt.get(key) as { latest_text: string } | undefined;
+    const rows = db.exec("SELECT latest_text FROM seen_events WHERE event_key = ? LIMIT 1", [key]);
 
-    if (!row) {
+    if (!rows.length || !rows[0].values.length) {
       filtered.push(finding);
       continue;
     }
 
-    const score = similarity(currentText, row.latest_text);
+    const latestText = rows[0].values[0][0] as string;
+    const score = similarity(currentText, latestText);
     if (score < 0.72) {
       filtered.push(finding);
     }
@@ -114,63 +130,57 @@ export async function filterFreshAndNovel(
 
 export async function markEventsSeen(findings: AgentFinding[]) {
   if (findings.length === 0) return 0;
-  const db = getDb();
+  const db = await getDb();
   const now = new Date().toISOString();
-  const stmt = db.prepare(
-    `INSERT INTO seen_events (event_key, latest_text, last_source_published_date, last_seen_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(event_key) DO UPDATE SET
-       latest_text = excluded.latest_text,
-       last_source_published_date = excluded.last_source_published_date,
-       last_seen_at = excluded.last_seen_at`,
-  );
-
   let affected = 0;
+
   for (const finding of findings) {
     const key = eventKey(finding);
     const latestText = `${finding.title} ${finding.summary}`.slice(0, 2000);
-    const result = stmt.run(key, latestText, finding.publishedAt ?? "", now);
-    affected += result.changes;
+    db.run(
+      `INSERT INTO seen_events (event_key, latest_text, last_source_published_date, last_seen_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(event_key) DO UPDATE SET
+         latest_text = excluded.latest_text,
+         last_source_published_date = excluded.last_source_published_date,
+         last_seen_at = excluded.last_seen_at`,
+      [key, latestText, finding.publishedAt ?? "", now],
+    );
+    affected += db.getRowsModified();
   }
 
+  saveToFile();
   return affected;
 }
 
 export async function filterUnpublished(findings: AgentFinding[]): Promise<AgentFinding[]> {
-  const db = getDb();
+  const db = await getDb();
   if (findings.length === 0) return [];
-  const stmt = db.prepare("SELECT source_url FROM published_items WHERE source_url = ? LIMIT 1");
 
   const unseen: AgentFinding[] = [];
   for (const finding of findings) {
-    const row = stmt.get(finding.sourceUrl);
-    if (!row) unseen.push(finding);
+    const rows = db.exec("SELECT source_url FROM published_items WHERE source_url = ? LIMIT 1", [finding.sourceUrl]);
+    if (!rows.length || !rows[0].values.length) unseen.push(finding);
   }
   return unseen;
 }
 
 export async function savePublished(findings: AgentFinding[], threadTs: string | null) {
   if (!threadTs || findings.length === 0) return 0;
-  const db = getDb();
+  const db = await getDb();
   const now = new Date().toISOString();
-  const stmt = db.prepare(
-    `INSERT OR IGNORE INTO published_items
-     (source_url, title, stream, source_published_date, first_slack_published_at, first_slack_thread_ts)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
 
   let inserted = 0;
   for (const finding of findings) {
-    const result = stmt.run(
-      finding.sourceUrl,
-      finding.title,
-      finding.stream,
-      finding.publishedAt ?? "",
-      now,
-      threadTs,
+    db.run(
+      `INSERT OR IGNORE INTO published_items
+       (source_url, title, stream, source_published_date, first_slack_published_at, first_slack_thread_ts)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [finding.sourceUrl, finding.title, finding.stream, finding.publishedAt ?? "", now, threadTs],
     );
-    inserted += result.changes;
+    inserted += db.getRowsModified();
   }
   await markEventsSeen(findings);
+  saveToFile();
   return inserted;
 }
