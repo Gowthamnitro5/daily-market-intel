@@ -1,4 +1,3 @@
-import { generateDailyBriefing } from "./llm";
 import { postMessage } from "./slack";
 import { setThreadContext } from "./thread-context";
 import { runAllAgents } from "./intelligence-agents";
@@ -6,6 +5,7 @@ import { dedupeFindings } from "./dedupe";
 import type { IntelligenceStream } from "./types";
 import { filterFreshAndNovel, filterUnpublished, markEventsSeen, savePublished } from "./database";
 import { applyAltCarbonRelevanceGate } from "./relevance";
+import { buildMainMessage, buildSectionMessages } from "./briefing-format";
 
 export async function runDailyWorkflow() {
   const streams = await runAllAgents();
@@ -35,8 +35,26 @@ export async function runDailyWorkflow() {
     };
   }
 
-  const briefing = await generateDailyBriefing(unpublishedFindings);
-  const ts = await postMessage(briefing);
+  // Build Slack messages in Alt-Radar style: main TL;DR + threaded sections.
+  const mainMessage = buildMainMessage(unpublishedFindings);
+  const sectionMessages = buildSectionMessages(unpublishedFindings);
+
+  const ts = await postMessage(mainMessage, undefined, {
+    unfurlLinks: false,
+    unfurlMedia: false,
+  });
+
+  // Post each section as a thread reply.
+  if (ts) {
+    for (const sectionMsg of sectionMessages) {
+      await postMessage(sectionMsg, undefined, {
+        threadTs: ts,
+        unfurlLinks: false,
+        unfurlMedia: false,
+      });
+    }
+  }
+
   const dbInserted = await savePublished(unpublishedFindings, ts);
   if (!ts) {
     await markEventsSeen(unpublishedFindings);
@@ -44,7 +62,7 @@ export async function runDailyWorkflow() {
 
   if (ts) {
     await setThreadContext(ts, {
-      briefing,
+      briefing: mainMessage,
       createdAt: new Date().toISOString(),
     });
   }
@@ -59,7 +77,7 @@ export async function runDailyWorkflow() {
       {} as Record<string, number>,
     ),
     postedThreadTs: ts,
-    preview: briefing.slice(0, 300),
+    preview: mainMessage.slice(0, 300),
     dbInserted,
   };
 }
