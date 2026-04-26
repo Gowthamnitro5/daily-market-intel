@@ -10,7 +10,8 @@ let _dbPath: string = "";
 async function getDb(): Promise<Database> {
   if (!_db) {
     const SQL = await initSqlJs();
-    const dataDir = path.join(process.cwd(), ".data");
+    const isVercel = !!process.env.VERCEL;
+    const dataDir = isVercel ? "/tmp" : path.join(process.cwd(), ".data");
     mkdirSync(dataDir, { recursive: true });
     _dbPath = path.join(dataDir, "market-intel.sqlite");
 
