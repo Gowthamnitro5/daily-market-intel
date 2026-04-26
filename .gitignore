@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# data
+.data/
+
+# debug
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# sample data exports
+Alt-Radar-*.json
+Daily-Market-Intelligence-*.json
