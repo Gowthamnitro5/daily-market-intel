@@ -101,6 +101,12 @@ export const ALL_TRUSTED_DOMAINS: string[] = [
   "fortuneindia.com",
   "news.un.org",
   "c2es.org",
+  // Google News & additional aggregators
+  "news.google.com",
+  "mongabay.com",
+  "india.mongabay.com",
+  "cleantech.com",
+  "spglobal.com",
 ];
 
 /** Per-stream Exa domain overrides — narrows search to most relevant sources per stream. */
@@ -138,6 +144,39 @@ export const STREAM_EXA_DOMAINS: Record<string, string[]> = {
     "techcrunch.com", "sifted.eu", "axios.com", "carbonherald.com", "carboncredits.com",
     "cleantech.com", "greenbiz.com", "canarymedia.com", "isometric.com", "cdr.fyi",
     "verra.org", "goldstandard.org", "puro.earth", "wired.com", "forbes.com",
+  ],
+};
+
+/** Per-stream Tavily domain overrides — broader than Exa since Tavily handles relevance better. */
+export const STREAM_TAVILY_DOMAINS: Record<string, string[]> = {
+  policy: [
+    "carbonbrief.org", "climatechangenews.com", "carbonherald.com", "carboncredits.com",
+    "reuters.com", "bloomberg.com", "ft.com", "nytimes.com", "theguardian.com",
+    "politico.eu", "insideclimatenews.org", "canarymedia.com", "grist.org",
+  ],
+  funding: [
+    "techcrunch.com", "bloomberg.com", "ft.com", "reuters.com", "forbes.com",
+    "cnbc.com", "canarymedia.com", "carboncredits.com", "carbonherald.com",
+    "ctvc.co", "sifted.eu", "energymonitor.ai",
+  ],
+  market: [
+    "carbonherald.com", "carboncredits.com", "ecosystemmarketplace.com",
+    "carbonbrief.org", "reuters.com", "bloomberg.com", "spglobal.com",
+    "cdr.fyi", "verra.org", "goldstandard.org",
+  ],
+  research: [
+    "nature.com", "science.org", "carbonbrief.org", "scientificamerican.com",
+    "biochartoday.com", "insideclimatenews.org", "mdpi.com", "arxiv.org",
+  ],
+  customer: [
+    "carboncredits.com", "carbonherald.com", "bloomberg.com", "reuters.com",
+    "ft.com", "forbes.com", "canarymedia.com", "business-standard.com",
+    "biochartoday.com", "edie.net",
+  ],
+  competitive: [
+    "techcrunch.com", "carbonherald.com", "carboncredits.com", "canarymedia.com",
+    "sifted.eu", "cleantech.com", "cdr.fyi", "isometric.com", "wired.com",
+    "forbes.com", "energymonitor.ai",
   ],
 };
 
@@ -274,13 +313,16 @@ export const STREAM_RSS_FEEDS: Record<
     "https://carbonherald.com/feed/",              // carbon industry news
     "https://news.un.org/feed/subscribe/en/news/topic/climate-change/feed/rss.xml", // UN climate
     "https://www.c2es.org/feed/",                  // Center for Climate and Energy Solutions
+    "https://news.google.com/rss/search?q=carbon+credit+policy+regulation&hl=en&gl=US&ceid=US:en", // Google News: carbon policy
+    "https://news.google.com/rss/search?q=carbon+removal+CDR+policy&hl=en&gl=US&ceid=US:en", // Google News: CDR policy
+    "https://news.google.com/rss/search?q=site:reuters.com+carbon+credit+climate&hl=en&gl=US&ceid=US:en", // Reuters via Google News
   ],
   funding: [
     "https://www.ctvc.co/feed",                    // climate VC newsletter
     "https://www.ft.com/climate-change?format=rss",
     "https://techcrunch.com/tag/sustainability/feed/",
     "https://techcrunch.com/tag/climate/feed/",
-    "https://www.greenbiz.com/feed",
+    "https://news.google.com/rss/search?q=site:greenbiz.com+carbon+sustainability&hl=en&gl=US&ceid=US:en", // GreenBiz via Google News
     "https://www.canarymedia.com/feed",
     "https://carbonherald.com/feed/",
     "https://carboncredits.com/feed/",             // carbon finance deals
@@ -288,6 +330,9 @@ export const STREAM_RSS_FEEDS: Record<
     "https://carbon180.org/feed",                  // CDR funding advocacy
     "https://www.ecosystemmarketplace.com/feed/",  // market finance
     "https://www.cnbc.com/id/10000108/device/rss/rss.html", // CNBC environment
+    "https://news.google.com/rss/search?q=carbon+removal+funding+investment+climate+tech&hl=en&gl=US&ceid=US:en", // Google News: carbon funding
+    "https://news.google.com/rss/search?q=site:reuters.com+carbon+climate+funding&hl=en&gl=US&ceid=US:en", // Reuters via Google News
+    "https://news.google.com/rss/search?q=site:spglobal.com+carbon+credit&hl=en&gl=US&ceid=US:en", // S&P Global via Google News
   ],
   market: [
     "https://carbonherald.com/feed/",
@@ -295,10 +340,12 @@ export const STREAM_RSS_FEEDS: Record<
     "https://carboncredits.com/feed/",             // carbon credit pricing/trading
     "https://www.ecosystemmarketplace.com/feed/",  // VCM marketplace
     "https://feeds.feedburner.com/carbonbrief",
-    "https://www.greenbiz.com/feed",
+    "https://news.google.com/rss/search?q=site:greenbiz.com+carbon+sustainability&hl=en&gl=US&ceid=US:en", // GreenBiz via Google News
     "https://energymonitor.ai/feed/",
     "https://www.theguardian.com/environment/rss",
     "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://news.google.com/rss/search?q=voluntary+carbon+market+carbon+credit+price&hl=en&gl=US&ceid=US:en", // Google News: carbon markets
+    "https://news.google.com/rss/search?q=site:reuters.com+carbon+market&hl=en&gl=US&ceid=US:en", // Reuters via Google News
   ],
   research: [
     "https://www.nature.com/nclimate.rss",
@@ -309,18 +356,23 @@ export const STREAM_RSS_FEEDS: Record<
     "https://biochartoday.com/category/news/feed/",
     "https://carbon180.org/feed",                  // CDR research highlights
     "https://www.edie.net/feed/",                  // sustainability research
+    "https://news.google.com/rss/search?q=biochar+OR+%22enhanced+weathering%22+OR+%22direct+air+capture%22+research&hl=en&gl=US&ceid=US:en", // Google News: CDR research
+    "https://news.google.com/rss/search?q=site:mongabay.com+carbon+forest+climate&hl=en&gl=US&ceid=US:en", // Mongabay via Google News
   ],
   customer: [
     "https://biochartoday.com/feed/",
     "https://carboncredits.com/feed/",             // buyer/offtake news
     "https://carbonherald.com/feed/",
     "https://www.canarymedia.com/feed",
-    "https://www.greenbiz.com/feed",
+    "https://news.google.com/rss/search?q=site:greenbiz.com+carbon+sustainability&hl=en&gl=US&ceid=US:en", // GreenBiz via Google News
     "https://www.edie.net/feed/",                  // corporate sustainability
     "https://energymonitor.ai/feed/",
     "https://www.theguardian.com/environment/rss",
     "https://www.business-standard.com/rss/companies/news-102.rss",
     "https://www.fortuneindia.com/feed",
+    "https://news.google.com/rss/search?q=carbon+credit+purchase+offtake+net+zero+corporate&hl=en&gl=US&ceid=US:en", // Google News: corporate carbon
+    "https://news.google.com/rss/search?q=carbon+credit+India+sustainability&hl=en&gl=IN&ceid=IN:en", // Google News India: carbon
+    "https://news.google.com/rss/search?q=site:mongabay.com+carbon+India&hl=en&gl=IN&ceid=IN:en", // Mongabay India via Google News
   ],
   competitive: [
     "https://techcrunch.com/tag/climate/feed/",
@@ -328,11 +380,13 @@ export const STREAM_RSS_FEEDS: Record<
     "https://carbonherald.com/feed/",
     "https://carboncredits.com/feed/",             // competitor launches
     "https://carbon180.org/feed",                  // CDR landscape
-    "https://www.greenbiz.com/feed",
+    "https://news.google.com/rss/search?q=site:greenbiz.com+carbon+sustainability&hl=en&gl=US&ceid=US:en", // GreenBiz via Google News
     "https://www.canarymedia.com/feed",
     "https://www.ctvc.co/feed",
     "https://energymonitor.ai/feed/",
     "https://www.ecosystemmarketplace.com/feed/",
     "https://www.edie.net/feed/",
+    "https://news.google.com/rss/search?q=carbon+removal+startup+CDR+company&hl=en&gl=US&ceid=US:en", // Google News: CDR startups
+    "https://cleantech.com/feed/",                 // Cleantech news
   ],
 };

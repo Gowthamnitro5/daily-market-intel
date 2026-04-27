@@ -56,8 +56,10 @@ function isAltCarbonRelevant(finding: AgentFinding) {
   const requiredHits = REQUIRED_RELEVANCE_TERMS.filter((term) => corpus.includes(term)).length;
   const boostHits = BOOST_TERMS.filter((term) => corpus.includes(term)).length;
 
+  // Always require at least 1 core carbon term — boost terms alone are too noisy
+  if (requiredHits === 0) return false;
   if (finding.stream === "research") return requiredHits >= 1;
-  return requiredHits >= 1 || (requiredHits >= 0 && boostHits >= 2);
+  return requiredHits >= 1;
 }
 
 export function applyAltCarbonRelevanceGate(findings: AgentFinding[]) {

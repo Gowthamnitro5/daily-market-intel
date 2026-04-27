@@ -129,9 +129,15 @@ async function main() {
 
   const streams = await core.runAllAgents();
   const merged = Object.values(streams).flat();
+  console.log(`\n━━━ PIPELINE SUMMARY ━━━`);
+  console.log(`  Raw from agents:  ${merged.length}`);
   const deduped = dedupe.dedupeFindings(merged);
+  console.log(`  After dedupe:     ${deduped.length}`);
   const relevant = relevance.applyAltCarbonRelevanceGate(deduped);
-  const fresh = await db.filterFreshAndNovel(relevant, 48);
+  console.log(`  After relevance:  ${relevant.length}`);
+  const fresh = await db.filterFreshAndNovel(relevant, 72);
+  console.log(`  After novelty:    ${fresh.length} (final → Slack)`);
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
   const mainMessage = buildMainMessage(fresh);
   const threadMessages = buildSectionMessages(fresh);

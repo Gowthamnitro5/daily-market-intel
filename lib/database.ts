@@ -34,7 +34,7 @@ function isFreshWithinHours(publishedAt: string | undefined, maxAgeHours: number
 
 export async function filterFreshAndNovel(
   findings: AgentFinding[],
-  maxAgeHours = 48,
+  maxAgeHours = 72,
 ): Promise<AgentFinding[]> {
   const filtered: AgentFinding[] = [];
 
@@ -55,7 +55,7 @@ export async function filterFreshAndNovel(
 
     const latestText = result.results[0].latest_text as string;
     const score = similarity(currentText, latestText);
-    if (score < 0.72) {
+    if (score < 0.80) {
       filtered.push(finding);
     }
   }

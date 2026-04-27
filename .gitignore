@@ -32,3 +32,5 @@ npm-debug.log*
 # sample data exports
 Alt-Radar-*.json
 Daily-Market-Intelligence-*.json
+.vercel
+.env*.local
