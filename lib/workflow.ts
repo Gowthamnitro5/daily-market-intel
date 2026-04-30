@@ -9,6 +9,8 @@ import { buildMainMessage, buildSectionMessages } from "./briefing-format";
 import { generateTldrBullets } from "./llm";
 import { alertUnhealthyFeeds } from "./feed-health";
 
+const channel = () => process.env.SLACK_TEST_CHANNEL_ID || process.env.SLACK_CHANNEL_ID;
+
 export async function runDailyWorkflow() {
   // Monitor RSS feed health and alert on failures.
   await alertUnhealthyFeeds().catch(() => {});
@@ -49,7 +51,7 @@ export async function runDailyWorkflow() {
     ].join("\n");
 
     try {
-      await postMessage(quietMsg, undefined, { unfurlLinks: false, unfurlMedia: false });
+      await postMessage(quietMsg, channel(), { unfurlLinks: false, unfurlMedia: false });
     } catch {
       // Slack down — nothing we can do
     }
@@ -85,7 +87,7 @@ export async function runDailyWorkflow() {
     ? mainMessage + "\n\n_Note: 48h window was quiet — this briefing includes items from the past 72 hours._"
     : mainMessage;
 
-  const ts = await postMessage(finalMessage, undefined, {
+  const ts = await postMessage(finalMessage, channel(), {
     unfurlLinks: false,
     unfurlMedia: false,
   });
@@ -93,7 +95,7 @@ export async function runDailyWorkflow() {
   // Post each section as a thread reply.
   if (ts) {
     for (const sectionMsg of sectionMessages) {
-      await postMessage(sectionMsg, undefined, {
+      await postMessage(sectionMsg, channel(), {
         threadTs: ts,
         unfurlLinks: false,
         unfurlMedia: false,

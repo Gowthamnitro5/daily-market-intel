@@ -488,15 +488,19 @@ ${sourceContext}`,
   return final;
 }
 
-export async function runAllAgents(): Promise<Record<IntelligenceStream, AgentFinding[]>> {
-  const streams: IntelligenceStream[] = [
-    "policy",
-    "funding",
-    "market",
-    "research",
-    "customer",
-    "competitive",
-  ];
+const DEFAULT_STREAMS: IntelligenceStream[] = [
+  "policy",
+  "funding",
+  "market",
+  "research",
+  "customer",
+  "competitive",
+];
+
+export async function runAllAgentsWithRunner(
+  runStream: (stream: IntelligenceStream) => Promise<AgentFinding[]>,
+  streams: IntelligenceStream[] = DEFAULT_STREAMS,
+): Promise<Record<IntelligenceStream, AgentFinding[]>> {
 
   const results: Record<IntelligenceStream, AgentFinding[]> = {
     policy: [],
@@ -509,7 +513,13 @@ export async function runAllAgents(): Promise<Record<IntelligenceStream, AgentFi
 
   // Run sequentially to reduce free-tier rate-limit spikes.
   for (const stream of streams) {
-    results[stream] = await runSpecializedAgent(stream);
+    try {
+      results[stream] = await runStream(stream);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[Agent:${stream}] failed: ${message}`);
+      results[stream] = [];
+    }
   }
 
   return streams.reduce(
@@ -519,4 +529,8 @@ export async function runAllAgents(): Promise<Record<IntelligenceStream, AgentFi
     },
     {} as Record<IntelligenceStream, AgentFinding[]>,
   );
+}
+
+export async function runAllAgents(): Promise<Record<IntelligenceStream, AgentFinding[]>> {
+  return runAllAgentsWithRunner(runSpecializedAgent);
 }
