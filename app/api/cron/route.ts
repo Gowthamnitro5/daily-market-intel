@@ -2,32 +2,22 @@ import { NextResponse } from "next/server";
 import { runDailyWorkflow } from "@/lib/workflow";
 import { postMessage } from "@/lib/slack";
 import { getEnv } from "@/lib/env";
+import { acquireLock, releaseLock, getPipelineState } from "@/lib/pipeline-lock";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const pipelineState: {
-  running: boolean;
-  runId: string | null;
-  startedAt: string | null;
-} = {
-  running: false,
-  runId: null,
-  startedAt: null,
-};
-
 function runPipelineInBackground() {
-  if (pipelineState.running) {
+  const state = getPipelineState();
+  if (state.running) {
     console.log(
-      `[Pipeline] Skipped duplicate trigger while run ${pipelineState.runId ?? "unknown"} is active`,
+      `[Pipeline] Skipped duplicate trigger while run ${state.runId ?? "unknown"} is active`,
     );
     return;
   }
 
-  const runId = `${Date.now()}`;
-  pipelineState.running = true;
-  pipelineState.runId = runId;
-  pipelineState.startedAt = new Date().toISOString();
+  const runId = `api-${Date.now()}`;
+  if (!acquireLock(runId)) return;
 
   // Fire-and-forget: run the pipeline without blocking the HTTP response.
   runDailyWorkflow()
@@ -44,9 +34,7 @@ function runPipelineInBackground() {
       }
     })
     .finally(() => {
-      pipelineState.running = false;
-      pipelineState.runId = null;
-      pipelineState.startedAt = null;
+      releaseLock();
     });
 }
 
@@ -59,12 +47,13 @@ async function handleCron(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (pipelineState.running) {
+  const state = getPipelineState();
+  if (state.running) {
     return NextResponse.json({
       ok: true,
       status: "already_running",
-      runId: pipelineState.runId,
-      startedAt: pipelineState.startedAt,
+      runId: state.runId,
+      startedAt: state.startedAt,
     });
   }
 

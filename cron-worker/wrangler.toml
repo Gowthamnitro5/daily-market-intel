@@ -3,5 +3,5 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 account_id = "bea831fb5da222836d44f9c69c46b9e7"
 
-[triggers]
-crons = ["30 2 * * *"]  # 8 AM IST (2:30 AM UTC) daily
+# [triggers]
+# crons = ["30 2 * * *"]  # DISABLED — internal scheduler on Railway handles this now
